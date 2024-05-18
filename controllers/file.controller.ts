@@ -1,5 +1,4 @@
 import { Request, Response } from "express";
-import { asynchandler } from "../utilities/async-handler";
 import pdf from "pdf-parse";
 import fs from "fs";
 import path from "path";
@@ -15,11 +14,12 @@ interface INewDocument {
   document: {
     name: string;
     text: string;
+    path: string;
   };
 }
 
 interface IFindDocument {
-  filename: string;
+  filepath: string;
 }
 
 export const UploadFileAndConvertToText = async (
@@ -33,9 +33,11 @@ export const UploadFileAndConvertToText = async (
 
     const data = await pdf(dataBufffer);
 
+    console.log(data);
+
     const newDocument = await prisma.document.create({
       data: {
-        name: (<IDocumentTitle>data.info).Title,
+        name: (<IDocumentTitle>data.info).Title || "",
         path: <string>req.file?.filename,
         text: data.text,
       },
@@ -46,6 +48,7 @@ export const UploadFileAndConvertToText = async (
       document: {
         name: newDocument.name,
         text: newDocument.text,
+        path: newDocument.path,
       },
     });
   } catch (e) {
@@ -54,16 +57,14 @@ export const UploadFileAndConvertToText = async (
 };
 
 export const SaveMarkDownText = async (req: Request, res: Response) => {
-  const { filename } = <IFindDocument>req.body;
+  const { filepath } = <IFindDocument>req.body;
 
   try {
     const findDocument = await prisma.document.findFirst({
       where: {
-        name: filename,
+        path: filepath,
       },
     });
-
-    console.log(findDocument);
 
     const markdownParsed = await marked.parse(<string>findDocument?.text);
 
